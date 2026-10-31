@@ -1,0 +1,14 @@
+
+# Ignorar o SDK do Flutter
+/flutter/
+
+# Ignorar o backup do projeto
+/cronograma_remedios_backup/
+
+# Arquivos temporários
+.DS_Store
+Thumbs.db
+
+# Configurações locais
+.env
+.env.*
