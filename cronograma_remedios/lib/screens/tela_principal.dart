@@ -1,8 +1,7 @@
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 
-import 'dart:async';
-import '../services/notificacoes.dart';
 import '../models/medicamento.dart';
 import '../services/banco_dados.dart';
 import '../services/cronograma.dart';
@@ -17,9 +16,8 @@ class TelaPrincipal extends StatefulWidget {
 class _TelaPrincipalState extends State<TelaPrincipal> {
   int paginaSelecionada = 0;
   bool carregando = true;
+  Timer? temporizadorAtualizacao;
 
-  Timer? temporizadorAlertas;
-  final Set<String> alertasEnviados = {};
   List<Medicamento> medicamentos = [];
   Map<String, String> situacoes = {};
   List<Map<String, Object?>> registros = [];
@@ -41,83 +39,17 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
   @override
   void initState() {
     super.initState();
-
-    atualizarDados().then((_) {
-        if (mounted) verificarAlertas();
-    });
-
-    temporizadorAlertas = Timer.periodic(
-        const Duration(seconds: 10),
-        (_) => verificarAlertas(),
+    atualizarDados();
+    temporizadorAtualizacao = Timer.periodic(
+      const Duration(seconds: 10), (_) => atualizarDados(),
     );
- }
+  }
 
   @override
   void dispose() {
-        temporizadorAlertas?.cancel();
-        super.dispose();
+    temporizadorAtualizacao?.cancel();
+    super.dispose();
   }
-// Verifica os horários e envia lembretes e alertas.
-    Future<void> verificarAlertas() async {
-    if (!mounted || carregando) return;
-
-    final agora = DateTime.now();
-    final hoje = Cronograma.somenteData(agora);
-
-    final doses = Cronograma.dosesDoPeriodo(
-        medicamentos,
-        hoje,
-        2,
-        situacoes,
-    );
-
-    for (final dose in doses) {
-        if (dose.situacao != null) continue;
-
-        final partesHorario = dose.horario.split(':');
-
-        final horarioDose = DateTime(
-        dose.data.year,
-        dose.data.month,
-        dose.data.day,
-        int.parse(partesHorario[0]),
-        int.parse(partesHorario[1]),
-        );
-
-        final minutosRestantes =
-            horarioDose.difference(agora).inSeconds;
-
-        // Lembrete 15 minutos antes.
-        if (minutosRestantes > 840 &&
-            minutosRestantes <= 900) {
-        final chave = '${dose.chave}_lembrete';
-
-        if (alertasEnviados.add(chave)) {
-            await Notificacoes.mostrar(
-            titulo: '💊 Lembrete de medicamento',
-            mensagem:
-                '${dose.medicamento.nome}: '
-                'faltam 15 minutos para ${dose.horario}.',
-            );
-        }
-        }
-
-        // Alerta no minuto programado.
-        if (minutosRestantes <= 0 &&
-            minutosRestantes > -60) {
-        final chave = '${dose.chave}_horario';
-
-        if (alertasEnviados.add(chave)) {
-            await Notificacoes.mostrar(
-            titulo: '💊 Hora do medicamento',
-            mensagem:
-                '${dose.medicamento.nome} - '
-                '${dose.medicamento.quantidade}.',
-            );
-        }
-        }
-    }
-    }
 
   // Atualiza as informações exibidas nas telas.
   Future<void> atualizarDados() async {
